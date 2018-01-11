@@ -74,6 +74,14 @@ def answer(question_key_words, options_key_words):
     content = content.replace('\n', '').replace('\r', '')
     contents.append(content)
 
+    option_count = [0]*len(options_key_words)
+    for i in range(len(options_key_words)):
+        for w in options_key_words[i]:
+            option_count[i] += content.count(w)
+
+    for i in range(len(options_key_words)):
+        print(' '.join(options_key_words[i]) + ': ' + str(option_count[i]))
+
     href_regex = r'<h3.*?>.*?href\s*=\s*"(.*?)".*</h3>'
     h3_regex = r'<h3.*?/h3>'
 
@@ -84,6 +92,7 @@ def answer(question_key_words, options_key_words):
         search_res.extend(href)
 
     search_res = search_res[:2]
+
     for url in search_res:
         print(url)
         try:
@@ -96,6 +105,14 @@ def answer(question_key_words, options_key_words):
                 except UnicodeDecodeError:
                     content = response.read().decode('gbk')
             contents.append(content)
+
+            for i in range(len(options_key_words)):
+                for w in options_key_words[i]:
+                    option_count[i] += content.count(w)
+
+            for i in range(len(options_key_words)):
+                print(' '.join(options_key_words[i]) + ': ' + str(option_count[i]))
+
         except urllib.error.HTTPError:
             continue
 
