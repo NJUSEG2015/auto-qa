@@ -3,6 +3,8 @@
 import os
 import re
 import time
+import string
+from zhon import hanzi
 import jieba
 import jieba.analyse
 import subprocess
@@ -16,14 +18,21 @@ from selenium.webdriver.chrome.options import Options
 
 
 def take_screenshot():
-    #output = subprocess.getoutput("idevicescreenshot")
     os.system("idevicescreenshot screen.png")
 
 
-def split_word(words):
-    words = jieba.analyse.extract_tags(words)
-    stop_words = ["什么", "哪些", "哪个", "以下"]
-    return [w for w in words if w not in stop_words]
+def split_option(option):
+    for p in string.punctuation:
+        option = option.replace(p, ' ')
+    for p in hanzi.punctuation:
+        option = option.replace(p, ' ')
+    return option.split()
+
+def split_question(question):
+
+    question = jieba.analyse.extract_tags(question)
+    stop_words = ["什么", "哪些", "哪个", "以下", "下列"]
+    return [w for w in question if w not in stop_words]
 
 
 def image_to_text():
@@ -31,6 +40,7 @@ def image_to_text():
     image = Image.open("./screen.png")
     image = image.crop((0, 180, 750, 1000))
     text = pytesseract.image_to_string(image, "chi_sim")
+
     text = text.split("\n\n")
 
     question, candidates = text[0], text[1:]
@@ -38,13 +48,13 @@ def image_to_text():
     if '.' in question:
         question = question[question.index('.'):]
     candidates = [ "".join(c.split()) for c in candidates ]
+    print(question)
+    print(candidates)
 
-    question = split_word(question)
-    candidates = [split_word(c) for c in candidates]
+    question = split_question(question)
+    option = [split_option(c) for c in candidates]
 
-    print(question, candidates)
-
-    return [question, candidates]
+    return question, option
 
 
 def open_browser(text):
@@ -108,16 +118,11 @@ if __name__ == "__main__":
 
         t1 = time.time()
         take_screenshot()
+
+        question_key_words, options_key_words = image_to_text()
         print(time.time() - t1)
+        # open_browser(" ".join(question_key_words))
 
-        [question_key_words, options_key_words] = image_to_text()
-        current = ' '.join(question_key_words)
-        t2 = time.time()
-        print(t2 - t1)
-        if current == text:
-            continue
-        text = current
-        open_browser(text)
         answer(question_key_words, options_key_words)
-
+        print(time.time() - t1)
 
