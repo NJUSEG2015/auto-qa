@@ -44,7 +44,7 @@ def image_to_text():
 
     print(question, candidates)
 
-    return text
+    return [question, candidates]
 
 
 def open_browser(text):
@@ -52,9 +52,9 @@ def open_browser(text):
     subprocess.Popen(["google-chrome", url], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
 
 
-def answer(question, options):
+def answer(question_key_words, options_key_words):
 
-    params = ' '.join(question)
+    params = ' '.join(question_key_words)
     url = "http://www.baidu.com/s?wd=" + urllib.parse.quote(params)
     print(url)
     contents = list()
@@ -73,7 +73,7 @@ def answer(question, options):
         href = re.findall(href_regex, m)
         search_res.extend(href)
 
-    search_res = search_res[:3]
+    search_res = search_res[:2]
     for url in search_res:
         print(url)
         try:
@@ -89,11 +89,12 @@ def answer(question, options):
         except urllib.error.HTTPError:
             continue
 
-    for option in options:
+    for option in options_key_words:
         appearance = 0
         for content in contents:
-            appearance += content.count(option)
-        print(option + ':' + str(appearance))
+            for w in option:
+                appearance += content.count(w)
+        print(' '.join(option) + ':' + str(appearance))
 
 
 if __name__ == "__main__":
@@ -109,14 +110,14 @@ if __name__ == "__main__":
         take_screenshot()
         print(time.time() - t1)
 
-        current = image_to_text()
+        [question_key_words, options_key_words] = image_to_text()
+        current = ' '.join(question_key_words)
         t2 = time.time()
         print(t2 - t1)
-        exit()
         if current == text:
             continue
         text = current
         open_browser(text)
-
+        answer(question_key_words, options_key_words)
 
 
