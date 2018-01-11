@@ -3,6 +3,8 @@
 import os
 import re
 import time
+import jieba
+import jieba.analyse
 import subprocess
 import pytesseract
 import urllib.request
@@ -13,36 +15,49 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
 
-def take_screen():
-    output = subprocess.getoutput("idevicescreenshot")
-    png = output.split()[-1]
-    os.rename(png, "screen.png")
+def take_screenshot():
+    #output = subprocess.getoutput("idevicescreenshot")
+    os.system("idevicescreenshot screen.png")
 
-def check_image(image):
-    return True
 
-def image_to_text(image):
-    im = image.crop((0, 150, 750, 360))
-    im.save("question.png")
-    text = pytesseract.image_to_string(im, "chi_sim")
-    text = "".join(text.split())
-    text.replace("唧","哪")
-    text.replace("_","一")
-    print(text)
+def split_word(words):
+    words = jieba.analyse.extract_tags(words)
+    stop_words = ["什么", "哪些", "哪个", "以下"]
+    return [w for w in words if w not in stop_words]
+
+
+def image_to_text():
+
+    image = Image.open("./screen.png")
+    image = image.crop((0, 180, 750, 1000))
+    text = pytesseract.image_to_string(image, "chi_sim")
+    text = text.split("\n\n")
+
+    question, candidates = text[0], text[1:]
+    question = "".join(question.split())
+    if '.' in question:
+        question = question[question.index('.'):]
+    candidates = [ "".join(c.split()) for c in candidates ]
+
+    question = split_word(question)
+    candidates = [split_word(c) for c in candidates]
+
+    print(question, candidates)
+
     return text
 
 
-def open_browser(driver, text):
-    url = "https://www.baidu.com"
-    url += "/s?wd=" + text
-    driver.get(url)
+def open_browser(text):
+    url = "https://www.baidu.com/s?wd=" + text
+    subprocess.Popen(["google-chrome", url], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
 
 
 def answer(question, options):
 
-    contents = list()
-    url = "http://www.baidu.com/s?wd=" + urllib.parse.quote(question)
+    params = ' '.join(question)
+    url = "http://www.baidu.com/s?wd=" + urllib.parse.quote(params)
     print(url)
+    contents = list()
     with urllib.request.urlopen(url) as response:
         html = response.read()
     content = html.decode('utf-8')
@@ -58,7 +73,7 @@ def answer(question, options):
         href = re.findall(href_regex, m)
         search_res.extend(href)
 
-    #search_res = search_res[:3]
+    search_res = search_res[:3]
     for url in search_res:
         print(url)
         try:
@@ -83,25 +98,25 @@ def answer(question, options):
 
 if __name__ == "__main__":
 
-    '''
-    chrome_options = Options()
-    chrome_options.add_argument("--disable-infobars")
-    browser = webdriver.Chrome(chrome_options=chrome_options)
+    jieba.initialize()
 
     text = ""
-    while True: 
-        input("[Enter]")
-        take_screen()
-        image = Image.open("./screen.png")
-        if check_image(image):
-            current = image_to_text(image)
-            if current == text:
-                continue
-            text = current
-            open_browser(browser, text)
-    '''
+    while True:
 
-    options = ['杨贵妃', '西施', '嫦娥']
-    answer('梨花带雨 形容 哪位 美女',options)
+        input("[Enter]")
+
+        t1 = time.time()
+        take_screenshot()
+        print(time.time() - t1)
+
+        current = image_to_text()
+        t2 = time.time()
+        print(t2 - t1)
+        exit()
+        if current == text:
+            continue
+        text = current
+        open_browser(text)
+
 
 
