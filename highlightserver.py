@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 from http.server import HTTPServer
 from http.server import BaseHTTPRequestHandler
 
+
 highlight_key_words = ""
 
 class GetHandler(BaseHTTPRequestHandler):
