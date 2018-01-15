@@ -7,16 +7,19 @@ import time
 import json
 import string
 import functools
+import subprocess
+from multiprocessing import Process
 
+import threading
 import _thread
 import http.server
 
+import pytesseract
 from PIL import Image
 from zhon import hanzi
+
 import jieba
 import jieba.analyse
-import subprocess
-import pytesseract
 
 from answer import answer
 import highlightserver
@@ -28,15 +31,15 @@ def load_config(name):
     if name not in config:
         exit()
     config = config[name]
-    return config['x1'], config['y1'],config['x2'],config['y2']
+    return config["question"], config["answer"]
 
 
 def take_screenshot():
-    os.system("idevicescreenshot screen.png")
+    os.system("idevicescreenshot screen.png >/dev/null 2>&1")
 
 
 def split_option(option):
-    for p in string.punctuation:
+    for p in hanzi.punctuation:
         option = option.replace(p, ' ')
     return option.split()
 
@@ -67,16 +70,26 @@ def split_question(question):
 
 def image_to_text(config):
 
+    t1 = time.time()
     image = Image.open("screen.png")
-    image = image.crop(config)
-    image.save("question.png", dpi=(326, 326))
 
-    text = subprocess.getoutput("tesseract question.png stdout -l chi_sim 2>/dev/null")
-    text = text.split("\n\n")
+    question_config, options_config = config
 
-    question, options = text[0], "\n".join(text[1:])
+    question = image.crop(question_config)
+    question.save("question.png", dpi=(326, 326))
+    options = image.crop(options_config)
+    options.save("options.png", dpi=(326,325))
+
+    p1 = subprocess.Popen(["tesseract", "question.png", "stdout", "-l", "chi_sim"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    p2 = subprocess.Popen(["tesseract", "options.png", "stdout", "-l", "chi_sim"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+    question = "\n".join(str(line, "utf-8") for line in iter(p1.stdout.readline, b''))
+    options = "\n".join(str(line, "utf-8") for line in iter(p2.stdout.readline, b''))
 
     question = "".join(question.split())
+    if len(question) <= 2:
+        return "", ""
+
     if question.startswith("10.") or question.startswith("11.") or question.startswith("12."):
         question = question[3:]
     elif ('1' <= question[0] <= '9') and question[1] == '.':
@@ -95,14 +108,18 @@ def image_to_text(config):
 
 
 def open_browser(text):
+    chrome = "google-chrome"
+    if os.path.exists("/Applications/Google Chrome.app"):
+        chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     url = "https://www.baidu.com/s?wd=" + text
-    subprocess.Popen(["google-chrome", url, "--allow-running-insecure-content"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+    subprocess.Popen([chrome, url, "--allow-running-insecure-content"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
 
 
 def backup_screen(backup):
     current_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-    subprocess.Popen(["cp", "screen.png", backup + "/screen-" + current_time + ".png"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-    subprocess.Popen(["cp", "question.png", backup + "/question-" + current_time + ".png"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+    subprocess.Popen(["cp", "screen.png", backup + "/" + current_time + "-screen.png"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+    subprocess.Popen(["cp", "question.png", backup + "/" + current_time + "-question.png"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+    subprocess.Popen(["cp", "options.png", backup + "/" + current_time + "-options.png"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
 
 
 if __name__ == "__main__":
@@ -120,17 +137,17 @@ if __name__ == "__main__":
     if not os.path.exists(backup):
         os.mkdir(backup)
 
-    _thread.start_new_thread(highlightserver.run, ())
+    t = threading.Thread(target=highlightserver.run, name='highlightserver')
+    t.start()
 
     while True:
 
         input("[Enter]")
 
-        # take_screenshot()
         t1 = time.time()
 
+        take_screenshot()
         question_key_words, options_key_words = image_to_text(config)
-
         if question_key_words == "":
             continue
 
@@ -141,9 +158,11 @@ if __name__ == "__main__":
         highlightserver.highlight_key_words = ",".join(key_word_set)
 
         open_browser(" ".join(question_key_words))
+
         print(time.time() - t1) 
         
+        answer_process = Process(target=answer, args=(question_key_words, options_key_words))
+        answer_process.start()
         backup_screen(backup)
-        answer(question_key_words, options_key_words)
-
+        answer_process.join()
 
