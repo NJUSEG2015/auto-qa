@@ -1,9 +1,9 @@
 {
 	"manifest_version": 2,
-	"name": "Automatic Keywords Highlighter",
-	"short_name": "Automatic Keywords Highlighter",
-	"description": "Automatically highlights given keywords on any web page you visit.",
-	"version": "0.0.0",
+	"name": "Highlighter",
+	"short_name": "Highlighter",
+	"description": "Highlights given keywords on any web page you visit.",
+	"version": "1.0.0",
 	"icons": {
 		"16": "icons/icon16.png",
 		"24": "icons/icon24.png",
@@ -15,16 +15,11 @@
 		"128": "icons/icon128.png",
 		"256": "icons/icon256.png"
 	},
-	"homepage_url": "https://github.com/wrzlbrmft/chrome-keywords-highlighter/blob/master/README.md",
-	"permissions": ["tabs", "http://localhost:8080/*"],
-	"background": {
-		"scripts": ["background.js"]
-	},
+	"permissions": ["tabs", "http://localhost:8080/"],
 	"content_scripts": [
 		{
 			"matches": ["http://*/*", "https://*/*"],
-			"js": ["content.js"],
-			"css": ["content.css"]
+			"js": ["content.js"]
 		}
 	],
 	"browser_action": {
@@ -39,8 +34,6 @@
 			"128": "icons/icon128.png",
 			"256": "icons/icon256.png"
 		},
-		"default_title": "Automatic Keywords Highlighter",
-		"default_popup": "popup.html"
-	},
-	"options_page": "options.html"
+		"default_title": "Highlighter"
+	}
 }
